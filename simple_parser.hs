@@ -2,6 +2,7 @@
 import Text.ParserCombinators.Parsec hiding (spaces)
 import System.Environment (getArgs)
 import Control.Monad (liftM)
+import Control.Monad.Error
 
 data LispVal = Atom String
              | List [LispVal]
