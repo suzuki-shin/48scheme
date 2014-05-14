@@ -6,6 +6,8 @@ import System.Environment (getArgs)
 -- import Control.Monad (liftM)
 import Control.Monad.Error
 import System.IO
+import Data.IORef
+import Data.Maybe (isJust)
 
 data LispVal = Atom String
              | List [LispVal]
@@ -276,3 +278,39 @@ until_ pred prompt action = do
 
 runRepl :: IO ()
 runRepl = until_ (== "quit") (readPrompt "lisp>>> ") evalAndPrint
+
+type Env = IORef [(String, IORef LispVal)]
+
+nullEnv :: IO Env
+nullEnv = newIORef []
+
+type IOThrowsError = ErrorT LispError IO
+
+liftThrows :: ThrowsError a -> IOThrowsError a
+liftThrows (Left err) = throwError err
+liftThrows (Right val) = return val
+
+runIOThrows :: IOThrowsError String -> IO String
+runIOThrows action = runErrorT (trapError action) >>= return . extractValue
+
+isBound :: Env -> String -> IO Bool
+-- isBound envRef var = readIORef envRef >>= return . maybe False (const True) . lookup var
+isBound envRef var = readIORef envRef >>= return . isJust . lookup var
+-- isBound envRef var = do
+--   env <- readIORef envRef
+--   return . isJust . lookup var $ env
+
+getVar :: Env -> String -> IOThrowsError LispVal
+getVar envRef var = do
+  env <- liftIO $ readIORef envRef
+  maybe (throwError $ UnboundVar "Getting on unbound variable: " var)
+    (liftIO . readIORef)
+    (lookup var env)
+
+setVar :: Env -> String -> LispVal -> IOThrowsError LispVal
+setVar envRef var value = do
+  env <- liftIO $ readIORef envRef
+  maybe (throwError $ UnboundVar "Setting an unbound variable: " var)
+    (liftIO . flip writeIORef value)
+    (lookup var env)
+  return value

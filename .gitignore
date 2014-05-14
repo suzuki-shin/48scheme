@@ -5,3 +5,4 @@
 /simple_parser.hi
 /simple_parser.o
 /simple_parser
+cabal.sandbox.config
